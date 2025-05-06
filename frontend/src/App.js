@@ -13,7 +13,9 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip
+  Tooltip,
+  BarChart,
+  Bar
 } from 'recharts';
 
 function App() {
@@ -28,6 +30,9 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [favorites, setFavorites] = useState([]);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [showPlayerCard, setShowPlayerCard] = useState(false);
+  const [similarPlayers, setSimilarPlayers] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -196,9 +201,61 @@ function App() {
     { month: 'Jan', player1: 90, player2: 82 }
   ];
 
+  const findSimilarPlayers = (player) => {
+    const playerStats = createRadarData(player);
+    const similarities = players
+      .filter(p => p.name !== player.name)
+      .map(p => {
+        const stats = createRadarData(p);
+        const similarity = stats.reduce((acc, stat, i) => {
+          return acc + (1 - Math.abs(stat.value - playerStats[i].value) / 100);
+        }, 0) / stats.length;
+        return { player: p, similarity };
+      })
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 5);
+    
+    setSimilarPlayers(similarities);
+  };
+
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
+
+  const togglePlayerCard = () => {
+    setShowPlayerCard(!showPlayerCard);
+  };
+
   return (
-    <div className="App" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1>EPL Player Analytics</h1>
+    <div className="App" style={{ 
+      padding: '20px', 
+      maxWidth: '1200px', 
+      margin: '0 auto',
+      backgroundColor: darkMode ? '#1a1a1a' : '#ffffff',
+      color: darkMode ? '#ffffff' : '#000000',
+      minHeight: '100vh'
+    }}>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        marginBottom: '20px'
+      }}>
+        <h1>EPL Player Analytics</h1>
+        <button 
+          onClick={toggleDarkMode}
+          style={{ 
+            padding: '10px 20px',
+            backgroundColor: darkMode ? '#ffffff' : '#1a1a1a',
+            color: darkMode ? '#1a1a1a' : '#ffffff',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+        </button>
+      </div>
       
       <div style={{ marginBottom: '20px', display: 'flex', gap: '20px', justifyContent: 'center' }}>
         <input
@@ -278,6 +335,21 @@ function App() {
         >
           {showFavorites ? 'Hide Favorites' : 'Show Favorites'}
         </button>
+
+        <button 
+          onClick={togglePlayerCard}
+          style={{ 
+            padding: '10px 20px', 
+            fontSize: '16px',
+            backgroundColor: '#9C27B0',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          {showPlayerCard ? 'Hide Player Card' : 'Show Player Card'}
+        </button>
       </div>
 
       {showFavorites && (
@@ -346,12 +418,93 @@ function App() {
         )}
       </div>
 
+      {showPlayerCard && selectedPlayer1 && (
+        <div style={{ 
+          marginBottom: '20px',
+          padding: '20px',
+          backgroundColor: darkMode ? '#2d2d2d' : '#f5f5f5',
+          borderRadius: '8px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          <h2>Player Card: {selectedPlayer1.name}</h2>
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1', minWidth: '300px' }}>
+              <h3>Basic Info</h3>
+              <p>Team: {selectedPlayer1.team}</p>
+              <p>Position: {selectedPlayer1.position}</p>
+              <button 
+                onClick={() => findSimilarPlayers(selectedPlayer1)}
+                style={{ 
+                  padding: '8px 16px',
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  marginTop: '10px'
+                }}
+              >
+                Find Similar Players
+              </button>
+            </div>
+            <div style={{ flex: '2', minWidth: '300px' }}>
+              <h3>Performance Metrics</h3>
+              <div style={{ height: '200px' }}>
+                <ResponsiveContainer>
+                  <BarChart data={data1}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="subject" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {similarPlayers.length > 0 && (
+        <div style={{ 
+          marginBottom: '20px',
+          padding: '20px',
+          backgroundColor: darkMode ? '#2d2d2d' : '#f5f5f5',
+          borderRadius: '8px'
+        }}>
+          <h3>Similar Players</h3>
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+            {similarPlayers.map(({ player, similarity }) => (
+              <div 
+                key={player.name}
+                style={{ 
+                  padding: '15px',
+                  backgroundColor: darkMode ? '#3d3d3d' : '#ffffff',
+                  borderRadius: '4px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  cursor: 'pointer'
+                }}
+                onClick={() => {
+                  setSelectedPlayer2(player);
+                  setComparisonMode(true);
+                }}
+              >
+                <h4>{player.name}</h4>
+                <p>Team: {player.team}</p>
+                <p>Position: {player.position}</p>
+                <p>Similarity: {(similarity * 100).toFixed(1)}%</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ height: '500px', width: '100%' }}>
         <ResponsiveContainer>
           <RadarChart cx="50%" cy="50%" outerRadius="80%" data={comparisonMode ? combinedData : data1}>
-            <PolarGrid />
-            <PolarAngleAxis dataKey="subject" />
-            <PolarRadiusAxis angle={30} domain={[0, 100]} />
+            <PolarGrid stroke={darkMode ? '#ffffff' : '#000000'} />
+            <PolarAngleAxis dataKey="subject" stroke={darkMode ? '#ffffff' : '#000000'} />
+            <PolarRadiusAxis angle={30} domain={[0, 100]} stroke={darkMode ? '#ffffff' : '#000000'} />
             <Radar
               name={selectedPlayer1.name}
               dataKey={comparisonMode ? "player1" : "value"}
@@ -394,9 +547,15 @@ function App() {
 
       <div style={{ marginTop: '40px' }}>
         <h3>Statistics Summary</h3>
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
+        <table style={{ 
+          width: '100%', 
+          borderCollapse: 'collapse', 
+          marginTop: '20px',
+          backgroundColor: darkMode ? '#2d2d2d' : '#ffffff',
+          color: darkMode ? '#ffffff' : '#000000'
+        }}>
           <thead>
-            <tr style={{ backgroundColor: '#f5f5f5' }}>
+            <tr style={{ backgroundColor: darkMode ? '#3d3d3d' : '#f5f5f5' }}>
               <th style={{ padding: '10px', textAlign: 'left' }}>Statistic</th>
               <th style={{ padding: '10px', textAlign: 'right' }}>{selectedPlayer1.name}</th>
               {comparisonMode && (
